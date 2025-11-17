@@ -1,23 +1,14 @@
-// --- (server.js เวอร์ชัน "Login" ... ผ่าตัดใหญ่) ---
+// --- (server.js เวอร์ชัน "ก่อน" Login ... (เวอร์ชัน "หมวดหมู่")) ---
 
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt'); // (*** 1. เรียกใช้ "แม่กุญแจ" ***)
-const jwt = require('jsonwebtoken'); // (*** 2. เรียกใช้ "ตั๋ว" ***)
-
-// (เรียก "พิมพ์เขียว" ทั้ง 3 อัน)
 const Order = require('./Order');
 const Menu = require('./Menu'); 
-const User = require('./User'); // (*** 3. เรียกใช้ "พิมพ์เขียวสมาชิก" ***)
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = 'mongodb+srv://witchapol8500_db_user:food12345@cluster0.kqtpois.mongodb.net/'; 
-
-// (*** 4. "กุญแจลับ" ... เอาไว้ใช้ "สร้างตั๋ว" (Token) ***)
-// (คุณจะเปลี่ยน 'YourSecretKey' เป็นอะไรก็ได้ที่ลับๆ)
-const JWT_SECRET = 'MySuperSecretKeyForFoodApp12345';
 
 mongoose.connect(MONGO_URI)
     .then(() => {
@@ -30,88 +21,8 @@ app.use(cors());
 app.use(express.json());
 
 // ===============================================
-//         (*** 5. API ใหม่! ... สำหรับ "Login") ***
+//         API "เดิม" (เมนู, ออเดอร์)
 // ===============================================
-
-// --- (POST) /api/auth/register (สมัครสมาชิก) ---
-app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        // (กันเหนียว: เช็กว่ากรอกครบไหม)
-        if (!username || !password) {
-            return res.status(400).json({ message: 'กรุณากรอก username และ password' });
-        }
-
-        // (เช็กว่า "ซ้ำ" ไหม)
-        const existingUser = await User.findOne({ username: username.toLowerCase() });
-        if (existingUser) {
-            return res.status(400).json({ message: 'Username นี้ถูกใช้ไปแล้ว' });
-        }
-
-        // (*** "เข้ารหัส" รหัสผ่าน! ***)
-        const hashedPassword = await bcrypt.hash(password, 10); // (10 คือความยาก)
-
-        // (สร้าง User ใหม่)
-        const newUser = new User({
-            username: username.toLowerCase(),
-            password: hashedPassword // (เก็บรหัสที่ "เข้ารหัส" แล้ว)
-        });
-
-        await newUser.save();
-        console.log(`✅ สมัครสมาชิกสำเร็จ: ${username}`);
-        res.status(201).json({ message: `สร้าง User ${username} สำเร็จ!` });
-
-    } catch (error) {
-        console.error('❌ เกิดข้อพลาดในการ Register:', error);
-        res.status(500).json({ message: 'เกิดข้อพลาดในเซิร์ฟเวอร์' });
-    }
-});
-
-
-// --- (POST) /api/auth/login (เข้าสู่ระบบ) ---
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        // (1. หา User)
-        const user = await User.findOne({ username: username.toLowerCase() });
-        if (!user) {
-            return res.status(401).json({ message: 'Username หรือ Password ไม่ถูกต้อง' });
-        }
-
-        // (2. "เปรียบเทียบ" รหัสผ่าน ... (bcrypt จะเทียบ "ของจริง" กับ "ที่เข้ารหัส"))
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ message: 'Username หรือ Password ไม่ถูกต้อง' });
-        }
-
-        // (3. "ผ่าน!" ... สร้าง "ตั๋ว" (Token) ให้เขา)
-        const token = jwt.sign(
-            { userId: user._id, username: user.username }, // (ข้อมูลในตั๋ว)
-            JWT_SECRET, // (ใช้ "กุญแจลับ" ของเรา)
-            { expiresIn: '1d' } // (ตั๋วหมดอายุใน 1 วัน)
-        );
-        
-        console.log(`✅ ${username} Login สำเร็จ!`);
-        // (4. ส่ง "ตั๋ว" กลับไปให้ Frontend)
-        res.status(200).json({ 
-            message: 'Login สำเร็จ!',
-            token: token,
-            username: user.username
-        });
-
-    } catch (error) {
-        console.error('❌ เกิดข้อพลาดในการ Login:', error);
-        res.status(500).json({ message: 'เกิดข้อพลาดในเซิร์ฟเวอร์' });
-    }
-});
-
-
-// ===============================================
-//         API "เดิม" (เมนู, ออเดอร์) ... (ไม่แก้อะไรเลย)
-// ===============================================
-// (เราจะมา "ล็อค" API พวกนี้ในสเต็ปถัดไป ... ตอนนี้ปล่อยไว้ก่อน)
 
 app.get('/api/menus', async (req, res) => {
     try {
@@ -205,9 +116,8 @@ app.delete('/api/menus/:id', async (req, res) => {
         res.status(500).json({ message: 'เกิดข้อพลาดในการลบออเดอร์' });
     }
 });
-async function seedDatabase() { /* (เหมือนเดิม) */ }
+async function seedDatabase() { /* (โค้ด Seed ... (ไม่พัง)) */ }
 
-// --- (เหมือนเดิม) สั่งให้เซิร์ฟเวอร์เริ่มทำงาน ---
 app.listen(PORT, () => {
-    console.log(`Backend server (เวอร์ชัน "Login") is running on port ${PORT}`);
+    console.log(`Backend server (เวอร์ชัน "หมวดหมู่") is running on port ${PORT}`);
 });
